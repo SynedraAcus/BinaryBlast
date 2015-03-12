@@ -36,7 +36,7 @@ class BinaryBlast():
         self.__sequence_offsets = []
         self.index.seek(8)
         t = int.from_bytes(self.index.read(4), 'big')
-        self.title = self.index.read(t)  #Take title length and read title
+        self.title = self.index.read(t).decode(encoding='ascii')  #Take title length and read title
         s = int.from_bytes(self.index.read(4),
                            'big')  #Timestamp length. Fuck the timestamp itself, no one ever needs it
         self.index.seek(t + s + 16)
@@ -59,8 +59,7 @@ class BinaryBlast():
 
     def __read_headers(self):
         """
-        Reads header file, gets gi from 'visible string' field and makes a dictionary with seq offset tuples
-        Needs to be replaced by proper DB-reading ASAP
+        Reads header file, gets gi (s) from 'visible string' field and makes a dictionary with seq offset tuples
         """
         import re
         pattern=re.compile(b'gi\|(\d{1,9})\|')
@@ -69,7 +68,9 @@ class BinaryBlast():
             self.headers.seek(self.__header_offsets[j][0])
             b=self.headers.read(self.__header_offsets[j][1])
             found=pattern.search(b)
-            self.__header_dict.update({int(found.groups()[0]):self.__sequence_offsets[j]})
+            for a in found.groups():
+                #There may be more than one gi for a given sequence. Nearly always so in nr, for example
+                self.__header_dict[a] = self.__sequence_offsets[j]
 
     def __get_position(self, seqid):
         """
@@ -83,7 +84,7 @@ class BinaryBlast():
             for j in range(len(self.__header_offsets)):
                 self.headers.seek(self.__header_offsets[j][0])
                 b = self.headers.read(self.__header_offsets[j][1])
-                if bytes(str(seqid), 'ascii') in b:
+                if bytes('gi|'+str(seqid)+'|', 'ascii') in b:#Just bytes(str(seqid)) is a collision risk
                     return self.__sequence_offsets[j]
 
 
