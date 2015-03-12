@@ -1,1 +1,7 @@
-A simple library for reading compiled BLAST databases in Python.
+A simple library for reading compiled protein BLAST databases in Python.
+Currently assumes headers to be NCBI-compatible (ie conform to 'gi\|(\d+)\|'), but this will change in future
+
+Usage:
+from BinaryBlast import BinaryBlast
+reader=BinaryBlast('foo/bar/baz')#Assumes baz.psq, baz.phr and baz.pin to exist
+reader.get_seq(gi) #int
