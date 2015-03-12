@@ -101,11 +101,17 @@ class BinaryBlast():
 
     def get_seq(self, seqid):
         '''
-        Returns a protein sequence of a given seqid as IUPAC string
+        Returns a protein sequence of a given seqid as SeqRecord object
         :param seqid:int
         :return:
         '''
-        return self.__get_seq_by_position(self.__get_position(seqid))
+        from Bio.Seq import Seq
+        from Bio.SeqRecord import SeqRecord
+        from Bio.Alphabet import IUPAC
+        simple_seq=Seq(self.__get_seq_by_position(self.__get_position(seqid)), IUPAC.protein)
+        seq_obj = SeqRecord(simple_seq)
+        seq_obj.id=seqid
+        return seq_obj
 
     #Here will be iterator support (when I get to it)
     def __next__(self):
