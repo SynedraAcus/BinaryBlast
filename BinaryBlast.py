@@ -59,7 +59,7 @@ class BinaryBlast():
 
     def __read_headers(self):
         """
-        Reads header file, gets gi (s) from 'visible string' field and makes a dictionary with seq offset tuples
+        Reads header file, gets gi(s) from 'visible string' field and makes a dictionary with seq offset tuples
         """
         import re
         pattern=re.compile(b'gi\|(\d{1,9})\|')
@@ -68,9 +68,9 @@ class BinaryBlast():
             self.headers.seek(self.__header_offsets[j][0])
             b=self.headers.read(self.__header_offsets[j][1])
             found=pattern.search(b)
-            for a in found.groups():
+            for a in re.findall(pattern, b):
                 #There may be more than one gi for a given sequence. Nearly always so in nr, for example
-                self.__header_dict[a] = self.__sequence_offsets[j]
+                self.__header_dict[int(a.decode('ascii'))] = self.__sequence_offsets[j]
 
     def __get_position(self, seqid):
         """
