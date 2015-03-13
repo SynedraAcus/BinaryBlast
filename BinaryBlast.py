@@ -2,10 +2,9 @@
 
 import os
 
-
 class BinaryBlast():
     '''
-    A class for reading compiled BLAST databases.
+    A class for reading compiled protein BLAST databases.
     Take filename without extension on creation
     Return given sequence by BinaryBlast.getSeq(seqID) or act as iterator
     '''
@@ -57,25 +56,28 @@ class BinaryBlast():
         if self.load_headers:
             self.__read_headers()
 
+    #Various internal functions unavailable to the user
+
     def __read_headers(self):
         """
-        Reads header file, gets gi(s) from 'visible string' field and makes a dictionary with seq offset tuples
+        Reads header file, gets 'visible string' field(s) and makes a dictionary with seq offset tuples
+        Also skips 'BL_ORD_ID' fields, but not others
         """
-        import re
-        pattern=re.compile(b'gi\|(\d{1,9})\|')
         self.__header_dict = {}
         for j in range(len(self.__header_offsets)):
             self.headers.seek(self.__header_offsets[j][0])
             b=self.headers.read(self.__header_offsets[j][1])
-            found=pattern.search(b)
-            for a in re.findall(pattern, b):
-                #There may be more than one gi for a given sequence. Nearly always so in nr, for example
-                self.__header_dict[int(a.decode('ascii'))] = self.__sequence_offsets[j]
+            #string_arr=b.split(sep=b'\x1A') #Every element *starts* with a VisibleString
+            s=_vs_to_str(b)
+            for a in s:
+                if 'BL_ORD_ID' in a:
+                    continue
+                self.__header_dict[a]=self.__sequence_offsets[j]
 
     def __get_position(self, seqid):
         """
-        Returns position of a seq with given seqid, either from dict or (way slower) scroll through headers
-        :param seqid: int
+        Returns position of a seq with given seqid, either from dict or (slower) scroll through headers
+        :param seqid: str
         :return:
         """
         if self.load_headers:
@@ -84,7 +86,7 @@ class BinaryBlast():
             for j in range(len(self.__header_offsets)):
                 self.headers.seek(self.__header_offsets[j][0])
                 b = self.headers.read(self.__header_offsets[j][1])
-                if bytes('gi|'+str(seqid)+'|', 'ascii') in b:#Just bytes(str(seqid)) is a collision risk
+                if bytes(seqid, encoding='ascii') in b: #We don't care
                     return self.__sequence_offsets[j]
 
 
@@ -114,7 +116,46 @@ class BinaryBlast():
         return seq_obj
 
     #Here will be iterator support (when I get to it)
+    def __iter__(self):
+        self.__iter_coord=0
+        return self
+
     def __next__(self):
-        pass
+        if self.__iter_coord >= self.sequence_number:
+            raise StopIteration
+        self.headers.seek(self.__header_offsets[self.__iter_coord][0])
+        h=self.headers.read(self.__header_offsets[self.__iter_coord][1])
+
+
+def _vs_to_str(s):
+    '''
+    Returns all VisibleString elements in a given header as strings
+    :param s: bytes
+    :return:
+    '''
+    looked=0
+    r=[]
+    while True:
+        start=s.find(b'\x1A', looked)
+        if start==-1:
+            break
+        if not s[start+1]>>7:
+            len_len=1
+            str_len=s[start+1]
+            vs=s[start+2:start+len_len+str_len+1].decode(encoding='ascii')
+        else:
+            len_len=s[start+1]&0b01111111
+            str_len=int.from_bytes(s[start+2:start+len_len+2], 'big')
+            try:
+                vs=s[start+len_len+2:start+len_len+str_len+2].decode(encoding='ascii')
+            except UnicodeDecodeError:
+                print('Line:\n{0}\nis broken. Length header {1} bytes, presumed\
+                      string length {2}, entire line length {3}. Start at \
+                      {4}'.format(s, len_len, str_len, len(s), start))
+                quit()
+        looked=start+len_len+str_len+2
+        r.append(vs)
+    return r
+
 
 
