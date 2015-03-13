@@ -1,6 +1,9 @@
 #! /usr/bin/python3
 
 import os
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio.Alphabet import IUPAC
 
 class BinaryBlast():
     '''
@@ -107,9 +110,7 @@ class BinaryBlast():
         :param seqid:int
         :return:
         '''
-        from Bio.Seq import Seq
-        from Bio.SeqRecord import SeqRecord
-        from Bio.Alphabet import IUPAC
+
         simple_seq=Seq(self.__get_seq_by_position(self.__get_position(seqid)), IUPAC.protein)
         seq_obj = SeqRecord(simple_seq)
         seq_obj.id=seqid
@@ -123,8 +124,15 @@ class BinaryBlast():
     def __next__(self):
         if self.__iter_coord >= self.sequence_number:
             raise StopIteration
+        self.sequence.seek(self.__sequence_offsets[self.__iter_coord][0])
+        s=Seq(self.sequence.read(self.__sequence_offsets[self.__iter_coord][1]).\
+              decode(encoding='ascii'),alphabet=IUPAC.protein)
+        sr=SeqRecord(s)
         self.headers.seek(self.__header_offsets[self.__iter_coord][0])
-        h=self.headers.read(self.__header_offsets[self.__iter_coord][1])
+        sr.id=_vs_to_str(self.headers.read(self.__header_offsets[self.__iter_coord][1]))[0]
+        #Somewhat unreliable: assumes 1st element to be ID
+        self.__iter_coord+=1
+        return sr
 
 
 def _vs_to_str(s):
