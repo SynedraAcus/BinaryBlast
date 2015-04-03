@@ -72,7 +72,7 @@ class BinaryBlast():
             b=self.headers.read(self.__header_offsets[j][1])
             s=_vs_to_str(b)
             for a in s:
-                if 'BL_ORD_ID' in a:
+                if 'BL_ORD_ID' in a:bytes(seqid, encoding='ascii') in b:
                     continue
                 self.__header_dict[a]=self.__sequence_offsets[j]
 
