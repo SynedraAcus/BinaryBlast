@@ -70,7 +70,6 @@ class BinaryBlast():
         for j in range(len(self.__header_offsets)):
             self.headers.seek(self.__header_offsets[j][0])
             b=self.headers.read(self.__header_offsets[j][1])
-            #string_arr=b.split(sep=b'\x1A') #Every element *starts* with a VisibleString
             s=_vs_to_str(b)
             for a in s:
                 if 'BL_ORD_ID' in a:
@@ -89,10 +88,25 @@ class BinaryBlast():
             for j in range(len(self.__header_offsets)):
                 self.headers.seek(self.__header_offsets[j][0])
                 b = self.headers.read(self.__header_offsets[j][1])
-                if bytes(seqid, encoding='ascii') in b: #We don't care
+                if bytes(seqid, encoding='ascii') in b:
                     return self.__sequence_offsets[j]
 
 
+    def __synonyms(self, seqid):
+        """
+        Return all names defined in the same header as seqid
+        :param seqid: str
+        :return:
+        """
+        if self.load_headers:
+            syn = [a for a in self.__header_dict.keys() if self.__header_dict[a]==self.__header_dict[seqid]]
+        else:
+            for j in range(len(self.__header_offsets)):
+                self.headers.seek(self.__header_offsets[j][0])
+                b = self.headers.read(self.__header_offsets[j][1])
+                if bytes(seqid, encoding='ascii') in b:
+                    syn = _vs_to_str(b)
+        return syn
 
     def __get_seq_by_position(self, pos):
         """
@@ -114,6 +128,7 @@ class BinaryBlast():
         simple_seq=Seq(self.__get_seq_by_position(self.__get_position(seqid)), IUPAC.protein)
         seq_obj = SeqRecord(simple_seq)
         seq_obj.id=seqid
+        seq_obj.annotations['ids'] = self.__synonyms(seqid)
         return seq_obj
 
     #Here will be iterator support (when I get to it)
@@ -129,15 +144,16 @@ class BinaryBlast():
               decode(encoding='ascii'),alphabet=IUPAC.protein)
         sr=SeqRecord(s)
         self.headers.seek(self.__header_offsets[self.__iter_coord][0])
-        sr.id=_vs_to_str(self.headers.read(self.__header_offsets[self.__iter_coord][1]))[0]
-        #Somewhat unreliable: assumes 1st element to be ID
-        self.__iter_coord+=1
+        sr.annotations['ids'] = _vs_to_str(self.headers.read(self.__header_offsets[self.__iter_coord][1]))
+        sr.id=sr.annotations['ids'][0]
+        # Somewhat unreliable: assumes 1st element to be ID
+        self.__iter_coord += 1
         return sr
 
 
 def _vs_to_str(s):
     '''
-    Returns all VisibleString elements in a given header as strings
+    Returns all VisibleString elements in a given header as a list of strings
     :param s: bytes
     :return:
     '''
