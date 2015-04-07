@@ -151,7 +151,7 @@ class BinaryBlast():
         return sr
 
 
-def _vs_to_str(s, split='none'):
+def _vs_to_str(s, split = 'none'):
     '''
     Return all VisibleString elements in a given header as a list of strings
     Remove BL_ORD_ID VisibleStrings, but no others
