@@ -15,7 +15,7 @@ class BinaryBlast():
     PROTEIN_CODE = ['-', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M',
                     'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'X', 'Y', 'Z', 'U', '*', 'O', 'J']
 
-    def __init__(self, name, load_headers=False):
+    def __init__(self, name, load_headers=False, split_headers='space'):
         '''
         :param name: str
         :param load_headers: bool
@@ -26,6 +26,7 @@ class BinaryBlast():
         '''
         self.load_headers = load_headers
         self.filepath = os.path.abspath(name)
+        self.split_headers=split_headers
         indexFile = self.filepath + '.pin'
         sequenceFile = self.filepath + '.psq'
         headersFile = self.filepath + '.phr'
@@ -70,10 +71,8 @@ class BinaryBlast():
         for j in range(len(self.__header_offsets)):
             self.headers.seek(self.__header_offsets[j][0])
             b=self.headers.read(self.__header_offsets[j][1])
-            s=_vs_to_str(b)
+            s=_vs_to_str(b, split=self.split_headers)
             for a in s:
-                if 'BL_ORD_ID' in a:bytes(seqid, encoding='ascii') in b:
-                    continue
                 self.__header_dict[a]=self.__sequence_offsets[j]
 
     def __get_position(self, seqid):
@@ -99,13 +98,13 @@ class BinaryBlast():
         :return:
         """
         if self.load_headers:
-            syn = [a for a in self.__header_dict.keys() if self.__header_dict[a]==self.__header_dict[seqid]]
+            syn = [a for a in self.__header_dict.keys() if self.__header_dict[a] == self.__header_dict[seqid]]
         else:
             for j in range(len(self.__header_offsets)):
                 self.headers.seek(self.__header_offsets[j][0])
                 b = self.headers.read(self.__header_offsets[j][1])
                 if bytes(seqid, encoding='ascii') in b:
-                    syn = _vs_to_str(b)
+                    syn = _vs_to_str(b, split=self.split_headers)
         return syn
 
     def __get_seq_by_position(self, pos):
@@ -144,16 +143,18 @@ class BinaryBlast():
               decode(encoding='ascii'),alphabet=IUPAC.protein)
         sr=SeqRecord(s)
         self.headers.seek(self.__header_offsets[self.__iter_coord][0])
-        sr.annotations['ids'] = _vs_to_str(self.headers.read(self.__header_offsets[self.__iter_coord][1]))
+        sr.annotations['ids'] = _vs_to_str(self.headers.read(self.__header_offsets[self.__iter_coord][1]),\
+                                           split=self.split_headers)
         sr.id=sr.annotations['ids'][0]
         # Somewhat unreliable: assumes 1st element to be ID
         self.__iter_coord += 1
         return sr
 
 
-def _vs_to_str(s):
+def _vs_to_str(s, split='none'):
     '''
-    Returns all VisibleString elements in a given header as a list of strings
+    Return all VisibleString elements in a given header as a list of strings
+    Remove BL_ORD_ID VisibleStrings, but no others
     :param s: bytes
     :return:
     '''
@@ -178,7 +179,13 @@ def _vs_to_str(s):
                       {4}'.format(s, len_len, str_len, len(s), start))
                 quit()
         looked=start+len_len+str_len+2
-        r.append(vs)
+        if 'BL_ORD_ID' in vs:
+            continue
+        # VisibleString may have to be splitted
+        if split == 'space':
+            r.append(vs.split(' '))
+        else:
+            r.append(vs)
     return r
 
 
